@@ -1,0 +1,27 @@
+name: NVIDIA chat smoke
+
+on:
+  push:
+    paths:
+      - 'scripts/smoke_nvidia_chat.py'
+      - '.github/workflows/nvidia-chat-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run benign multi-role chat smoke test
+        run: python scripts/smoke_nvidia_chat.py
+      - name: Upload smoke report
+        uses: actions/upload-artifact@v4
+        with:
+          name: nvidia-chat-smoke
+          path: nvidia-chat-smoke.json
