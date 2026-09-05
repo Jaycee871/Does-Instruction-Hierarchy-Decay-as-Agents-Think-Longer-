@@ -1,4 +1,8 @@
-from ih_decay.grader import grade_output_isolated, grader_reads_input_text
+from ih_decay.grader import (
+    grade_output_isolated,
+    grader_consumes_input_text,
+    grader_reads_input_text,
+)
 
 
 SIMPLE_GRADER = r'''import re
@@ -17,11 +21,44 @@ def test_runs_expected_benchmark_signature():
 
 def test_detects_input_text_dependency_conservatively():
     assert grader_reads_input_text(SIMPLE_GRADER) is False
+    assert grader_consumes_input_text(SIMPLE_GRADER) is False
     dependent = (
         "def grade_output_correct(input_text, assistant_response):\n"
         " return input_text in assistant_response\n"
     )
     assert grader_reads_input_text(dependent) is True
+    assert grader_consumes_input_text(dependent) is True
+
+
+def test_semantic_trace_ignores_pure_forwarding():
+    forwarded_only = '''
+def helper(input_text, assistant_response):
+    return assistant_response == "ok"
+
+def grade_output_correct(input_text, assistant_response):
+    return helper(input_text, assistant_response)
+'''
+    assert grader_reads_input_text(forwarded_only) is True
+    assert grader_consumes_input_text(forwarded_only) is False
+
+
+def test_semantic_trace_follows_forwarding_to_real_use():
+    forwarded_to_use = '''
+def helper(prompt, assistant_response):
+    return prompt in assistant_response
+
+def grade_output_correct(input_text, assistant_response):
+    return helper(input_text, assistant_response)
+'''
+    assert grader_consumes_input_text(forwarded_to_use) is True
+
+
+def test_semantic_trace_treats_unknown_call_as_consumption():
+    unknown = '''
+def grade_output_correct(input_text, assistant_response):
+    return external_check(input_text)
+'''
+    assert grader_consumes_input_text(unknown) is True
 
 
 def test_rejects_non_allowlisted_import():
