@@ -12,6 +12,7 @@ except ImportError:  # pragma: no cover - non-POSIX fallback
 ALLOWED_IMPORTS = frozenset(
     {
         "collections",
+        "csv",
         "decimal",
         "fractions",
         "functools",
