@@ -7,7 +7,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from ih_decay.data import DATA_FILES, iter_examples
-from ih_decay.grader import grader_reads_input_text
+from ih_decay.grader import grader_consumes_input_text, grader_reads_input_text
 
 OUTPUT_PATH = Path("grader-input-contract-audit.json")
 REPRESENTATIVES_PER_SPLIT = 5
@@ -59,7 +59,8 @@ def main() -> None:
     by_split: dict[str, Counter] = {}
     by_task: dict[str, Counter] = defaultdict(Counter)
     usage_contexts = Counter()
-    representatives: dict[str, list[dict[str, object]]] = defaultdict(list)
+    forwarding_representatives: dict[str, list[dict[str, object]]] = defaultdict(list)
+    consuming_representatives: dict[str, list[dict[str, object]]] = defaultdict(list)
 
     for source_file in DATA_FILES:
         split_counts = Counter()
@@ -72,7 +73,19 @@ def main() -> None:
 
             task_type = str(example.metadata.get("task_type", "<missing>"))
             reads = grader_reads_input_text(grader_code)
-            bucket = "reads_input_text" if reads else "ignores_input_text"
+            consumes = grader_consumes_input_text(grader_code)
+            if consumes and not reads:
+                raise RuntimeError(
+                    f"Semantic tracer reported consumption without a static load: {example.example_id}"
+                )
+
+            if consumes:
+                bucket = "consumes_input_text"
+            elif reads:
+                bucket = "forwards_input_text_only"
+            else:
+                bucket = "no_input_text_load"
+
             split_counts[bucket] += 1
             overall[bucket] += 1
             by_task[task_type][bucket] += 1
@@ -80,33 +93,38 @@ def main() -> None:
             if reads:
                 contexts = _input_text_contexts(grader_code)
                 usage_contexts.update(contexts)
-                if len(representatives[source_file]) < REPRESENTATIVES_PER_SPLIT:
-                    representatives[source_file].append(
-                        {
-                            "example_id": example.example_id,
-                            "row_index": example.row_index,
-                            "task_type": task_type,
-                            "privileged_level": example.metadata.get("privileged_level"),
-                            "attack_level": example.metadata.get("attack_level"),
-                            "attacker_problem": example.attacker_problem,
-                            "grader_code_python": grader_code,
-                            "input_text_contexts": contexts,
-                        }
-                    )
+                record = {
+                    "example_id": example.example_id,
+                    "row_index": example.row_index,
+                    "task_type": task_type,
+                    "privileged_level": example.metadata.get("privileged_level"),
+                    "attack_level": example.metadata.get("attack_level"),
+                    "attacker_problem": example.attacker_problem,
+                    "grader_code_python": grader_code,
+                    "input_text_contexts": contexts,
+                    "semantic_consumption": consumes,
+                }
+                destination = (
+                    consuming_representatives if consumes else forwarding_representatives
+                )
+                if len(destination[source_file]) < REPRESENTATIVES_PER_SPLIT:
+                    destination[source_file].append(record)
         by_split[source_file] = split_counts
 
     payload = {
-        "purpose": "determine where IH-Challenge graders consume input_text before expanding graded pilots",
+        "purpose": "determine whether IH-Challenge graders inspect input_text or merely forward the parameter",
+        "python_version_note": "Audit runs under Python 3.12 because some public grader source uses PEP 701 f-string syntax.",
         "overall": dict(overall),
         "by_split": {name: dict(counts) for name, counts in by_split.items()},
         "by_task_type": {
             name: dict(counts) for name, counts in sorted(by_task.items())
         },
         "input_text_ast_contexts": dict(usage_contexts),
-        "representatives": dict(representatives),
+        "forwarding_representatives": dict(forwarding_representatives),
+        "consuming_representatives": dict(consuming_representatives),
         "note": (
             "Representative grader source is included only in this workflow artifact for contract inspection; "
-            "the dataset is public. Counts are static AST observations, not grading results."
+            "the dataset is public. Counts are static AST/dataflow observations, not grading results."
         ),
     }
     OUTPUT_PATH.write_text(
@@ -121,6 +139,10 @@ def main() -> None:
                 "by_split": payload["by_split"],
                 "by_task_type": payload["by_task_type"],
                 "input_text_ast_contexts": payload["input_text_ast_contexts"],
+                "consuming_representative_counts": {
+                    name: len(rows)
+                    for name, rows in payload["consuming_representatives"].items()
+                },
             },
             indent=2,
             sort_keys=True,
