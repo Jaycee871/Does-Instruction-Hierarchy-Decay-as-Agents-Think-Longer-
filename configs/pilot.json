@@ -1,0 +1,34 @@
+{
+  "study": "ih-decay-pilot-v0",
+  "dataset": {
+    "bucket": "hf://buckets/Jaycee766/ih-challenge-bucket",
+    "files": [
+      "single-constraint.jsonl",
+      "multi-constraint.jsonl",
+      "input-conditioned.jsonl",
+      "anti-overrefusal.jsonl"
+    ],
+    "items_per_file": 25
+  },
+  "trajectory": {
+    "checkpoints": [1, 3, 5, 10, 20],
+    "condition": "persistence-only",
+    "carry_forward_model_output": true,
+    "inject_new_lower_priority_content": false
+  },
+  "generation": {
+    "temperature": 0.0,
+    "max_tokens": 1024
+  },
+  "record": [
+    "model",
+    "source_file",
+    "row_index",
+    "seed",
+    "checkpoint",
+    "cumulative_input_tokens",
+    "output",
+    "grader_pass",
+    "timestamp"
+  ]
+}
