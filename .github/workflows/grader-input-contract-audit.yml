@@ -1,0 +1,30 @@
+name: Grader input contract audit
+
+on:
+  push:
+    paths:
+      - 'src/ih_decay/grader.py'
+      - 'scripts/audit_grader_input_contract.py'
+      - '.github/workflows/grader-input-contract-audit.yml'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN1 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install package
+        run: python -m pip install -e .
+      - name: Audit all public IH-Challenge graders
+        run: python scripts/audit_grader_input_contract.py
+      - name: Upload audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: grader-input-contract-audit
+          path: grader-input-contract-audit.json

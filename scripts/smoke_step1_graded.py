@@ -6,7 +6,8 @@ from pathlib import Path
 
 from ih_decay.attacks import freeze_attack_nvidia
 from ih_decay.data import iter_examples
-from ih_decay.grader import grade_output_isolated, grader_reads_input_text
+from ih_decay.grader import grade_output_isolated
+from ih_decay.grader_contract import grader_input_parameter_name, resolve_grader_input
 from ih_decay.materialize import materialize_attack
 from ih_decay.providers import nvidia_chat
 
@@ -44,15 +45,6 @@ def main() -> None:
         if not isinstance(grader_code, str) or not grader_code.strip():
             raise RuntimeError(f"Missing grader_code_python for {example.example_id}")
 
-        # We deliberately start with benchmark rows whose grader does not consume
-        # input_text, so this smoke does not guess the wider benchmark's input_text
-        # semantics. Broader pilot execution remains blocked until that contract is
-        # resolved and tested explicitly.
-        if grader_reads_input_text(grader_code):
-            raise RuntimeError(
-                f"{example.example_id} reads input_text; refusing to guess its semantics"
-            )
-
         frozen = freeze_attack_nvidia(
             example,
             api_key=nvidia_key,
@@ -80,9 +72,14 @@ def main() -> None:
             reasoning_effort="low",
         )
 
+        grader_input, grader_input_mode = resolve_grader_input(
+            grader_code,
+            frozen_attack_text=frozen.attack_text,
+        )
+        grader_parameter = grader_input_parameter_name(grader_code)
         grade = grade_output_isolated(
             grader_code,
-            "",
+            grader_input,
             defender.content,
             timeout_s=2.0,
             memory_mb=256,
@@ -112,8 +109,8 @@ def main() -> None:
                     reasoning_effort="low",
                     max_tokens=4096,
                 ),
-                "grader_reads_input_text": False,
-                "grader_input_text_mode": "empty string; statically verified unused",
+                "grader_first_parameter": grader_parameter,
+                "grader_input_mode": grader_input_mode,
                 "grade": grade.as_dict(),
                 "note": "Graded step-1 pipeline smoke only; not an IHD result.",
             }
@@ -125,9 +122,10 @@ def main() -> None:
         "model": MODEL,
         "trajectory_step": 1,
         "purpose": "graded step-1 pipeline smoke only; not an IHD result",
-        "input_text_scope": (
-            "Only graders with no static load of input_text are admitted; broader "
-            "benchmark input_text semantics remain unresolved by this smoke."
+        "grader_contract": (
+            "First grader argument is resolved by the frozen full-dataset audit: "
+            "attacker_output receives exact frozen attack text; input_text receives an "
+            "empty compatibility value only after verification that it is unused."
         ),
         "records": records,
     }
@@ -145,6 +143,7 @@ def main() -> None:
                         f"{record['privileged_level']}->{record['attack_level']}"
                     ),
                     "attack_sha256": record["attack_sha256"],
+                    "grader_input_mode": record["grader_input_mode"],
                     "grade_status": record["grade"]["status"],
                     "correct": record["grade"]["correct"],
                 }
