@@ -13,8 +13,19 @@ OUTPUT_PATH = Path("grader-input-contract-audit.json")
 REPRESENTATIVES_PER_SPLIT = 5
 
 
-def _input_text_contexts(grader_code: str) -> list[str]:
+def _input_parameter_name(tree: ast.Module) -> str:
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "grade_output_correct":
+            positional = list(node.args.posonlyargs) + list(node.args.args)
+            if not positional:
+                raise ValueError("grade_output_correct has no positional input argument")
+            return positional[0].arg
+    raise ValueError("grade_output_correct is missing")
+
+
+def _input_text_contexts(grader_code: str) -> tuple[str, list[str]]:
     tree = ast.parse(grader_code, filename="<dataset-grader>", mode="exec")
+    parameter_name = _input_parameter_name(tree)
     parents: dict[ast.AST, ast.AST] = {}
     for parent in ast.walk(tree):
         for child in ast.iter_child_nodes(parent):
@@ -24,7 +35,7 @@ def _input_text_contexts(grader_code: str) -> list[str]:
     for node in ast.walk(tree):
         if not (
             isinstance(node, ast.Name)
-            and node.id == "input_text"
+            and node.id == parameter_name
             and isinstance(node.ctx, ast.Load)
         ):
             continue
@@ -50,7 +61,7 @@ def _input_text_contexts(grader_code: str) -> list[str]:
             contexts.append("nested_call_argument")
         else:
             contexts.append(type(parent).__name__ if parent is not None else "unknown")
-    return contexts
+    return parameter_name, contexts
 
 
 def main() -> None:
@@ -59,6 +70,7 @@ def main() -> None:
     by_split: dict[str, Counter] = {}
     by_task: dict[str, Counter] = defaultdict(Counter)
     usage_contexts = Counter()
+    parameter_names = Counter()
     forwarding_representatives: dict[str, list[dict[str, object]]] = defaultdict(list)
     consuming_representatives: dict[str, list[dict[str, object]]] = defaultdict(list)
 
@@ -90,8 +102,9 @@ def main() -> None:
             overall[bucket] += 1
             by_task[task_type][bucket] += 1
 
+            parameter_name, contexts = _input_text_contexts(grader_code)
+            parameter_names[parameter_name] += 1
             if reads:
-                contexts = _input_text_contexts(grader_code)
                 usage_contexts.update(contexts)
                 record = {
                     "example_id": example.example_id,
@@ -101,6 +114,7 @@ def main() -> None:
                     "attack_level": example.metadata.get("attack_level"),
                     "attacker_problem": example.attacker_problem,
                     "grader_code_python": grader_code,
+                    "input_parameter_name": parameter_name,
                     "input_text_contexts": contexts,
                     "semantic_consumption": consumes,
                 }
@@ -112,13 +126,14 @@ def main() -> None:
         by_split[source_file] = split_counts
 
     payload = {
-        "purpose": "determine whether IH-Challenge graders inspect input_text or merely forward the parameter",
+        "purpose": "determine whether IH-Challenge graders inspect their first input argument or merely forward it",
         "python_version_note": "Audit runs under Python 3.12 because some public grader source uses PEP 701 f-string syntax.",
         "overall": dict(overall),
         "by_split": {name: dict(counts) for name, counts in by_split.items()},
         "by_task_type": {
             name: dict(counts) for name, counts in sorted(by_task.items())
         },
+        "input_parameter_names": dict(parameter_names),
         "input_text_ast_contexts": dict(usage_contexts),
         "forwarding_representatives": dict(forwarding_representatives),
         "consuming_representatives": dict(consuming_representatives),
@@ -138,6 +153,7 @@ def main() -> None:
                 "overall": payload["overall"],
                 "by_split": payload["by_split"],
                 "by_task_type": payload["by_task_type"],
+                "input_parameter_names": payload["input_parameter_names"],
                 "input_text_ast_contexts": payload["input_text_ast_contexts"],
                 "consuming_representative_counts": {
                     name: len(rows)
