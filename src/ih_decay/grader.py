@@ -24,21 +24,137 @@ class GradeResult:
         return asdict(self)
 
 
-def grader_reads_input_text(grader_code: str) -> bool:
-    """Return whether a grader statically loads the `input_text` argument.
-
-    This is intentionally conservative and is used only to select the first graded
-    smoke cases. A syntax error is treated as unsafe rather than guessed around.
-    """
+def _parse_grader(grader_code: str) -> ast.Module:
     if not isinstance(grader_code, str) or not grader_code.strip():
         raise ValueError("grader_code must be a non-empty string")
-    tree = ast.parse(grader_code, filename="<dataset-grader>", mode="exec")
+    return ast.parse(grader_code, filename="<dataset-grader>", mode="exec")
+
+
+def grader_reads_input_text(grader_code: str) -> bool:
+    """Return whether a grader contains any static load of `input_text`.
+
+    This deliberately over-approximates semantic use: forwarding `input_text` into a
+    helper also counts as a read. Use `grader_consumes_input_text` when the distinction
+    between forwarding and actually inspecting the value matters.
+    """
+    tree = _parse_grader(grader_code)
     return any(
         isinstance(node, ast.Name)
         and node.id == "input_text"
         and isinstance(node.ctx, ast.Load)
         for node in ast.walk(tree)
     )
+
+
+def grader_consumes_input_text(grader_code: str) -> bool:
+    """Conservatively trace whether the public grader can inspect `input_text`.
+
+    The IH-Challenge grader signature always accepts `input_text`, but many composite
+    graders merely forward that parameter to local helper graders that themselves ignore
+    it. This lightweight inter-procedural taint analysis follows direct calls between
+    top-level local functions and treats every other use as semantic consumption.
+
+    Unknown calls, attributes, starred arguments, closures, and other ambiguous cases are
+    intentionally classified as consuming the value rather than guessed away.
+    """
+    tree = _parse_grader(grader_code)
+    functions = {
+        node.name: node
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+    root = functions.get("grade_output_correct")
+    if root is None:
+        raise ValueError("grade_output_correct is missing")
+
+    parents: dict[ast.AST, ast.AST] = {}
+    for parent in ast.walk(tree):
+        for child in ast.iter_child_nodes(parent):
+            parents[child] = parent
+
+    def parameters(function: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
+        return [
+            arg.arg
+            for arg in (
+                list(function.args.posonlyargs)
+                + list(function.args.args)
+                + list(function.args.kwonlyargs)
+            )
+        ]
+
+    def owner_function(node: ast.AST) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+        current = parents.get(node)
+        while current is not None:
+            if isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                return current
+            current = parents.get(current)
+        return None
+
+    def forwarded_target(
+        name_node: ast.Name,
+    ) -> tuple[str, str] | None:
+        parent = parents.get(name_node)
+        call: ast.Call | None = None
+        target_parameter: str | None = None
+
+        if isinstance(parent, ast.Call) and name_node in parent.args:
+            call = parent
+            position = parent.args.index(name_node)
+            if isinstance(call.func, ast.Name) and call.func.id in functions:
+                callee_params = parameters(functions[call.func.id])
+                if position < len(callee_params):
+                    target_parameter = callee_params[position]
+        elif isinstance(parent, ast.keyword) and parent.value is name_node:
+            maybe_call = parents.get(parent)
+            if isinstance(maybe_call, ast.Call):
+                call = maybe_call
+                target_parameter = parent.arg
+
+        if (
+            call is None
+            or target_parameter is None
+            or not isinstance(call.func, ast.Name)
+            or call.func.id not in functions
+        ):
+            return None
+        return call.func.id, target_parameter
+
+    visiting: set[tuple[str, str]] = set()
+    resolved: dict[tuple[str, str], bool] = {}
+
+    def consumes(function_name: str, parameter_name: str) -> bool:
+        key = (function_name, parameter_name)
+        if key in resolved:
+            return resolved[key]
+        if key in visiting:
+            return False
+        function = functions[function_name]
+        if parameter_name not in parameters(function):
+            return True
+
+        visiting.add(key)
+        try:
+            for node in ast.walk(function):
+                if not (
+                    isinstance(node, ast.Name)
+                    and node.id == parameter_name
+                    and isinstance(node.ctx, ast.Load)
+                    and owner_function(node) is function
+                ):
+                    continue
+                target = forwarded_target(node)
+                if target is None:
+                    resolved[key] = True
+                    return True
+                if consumes(*target):
+                    resolved[key] = True
+                    return True
+            resolved[key] = False
+            return False
+        finally:
+            visiting.discard(key)
+
+    return consumes("grade_output_correct", "input_text")
 
 
 def grade_output_isolated(
