@@ -30,57 +30,90 @@ def _parse_grader(grader_code: str) -> ast.Module:
     return ast.parse(grader_code, filename="<dataset-grader>", mode="exec")
 
 
-def grader_reads_input_text(grader_code: str) -> bool:
-    """Return whether a grader contains any static load of `input_text`.
+def _top_level_functions(
+    tree: ast.Module,
+) -> dict[str, ast.FunctionDef | ast.AsyncFunctionDef]:
+    return {
+        node.name: node
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
 
-    This deliberately over-approximates semantic use: forwarding `input_text` into a
-    helper also counts as a read. Use `grader_consumes_input_text` when the distinction
-    between forwarding and actually inspecting the value matters.
+
+def _positional_parameters(
+    function: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> list[str]:
+    return [
+        arg.arg
+        for arg in list(function.args.posonlyargs) + list(function.args.args)
+    ]
+
+
+def _all_parameters(
+    function: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> list[str]:
+    return [
+        arg.arg
+        for arg in (
+            list(function.args.posonlyargs)
+            + list(function.args.args)
+            + list(function.args.kwonlyargs)
+        )
+    ]
+
+
+def _grader_input_parameter(
+    tree: ast.Module,
+) -> tuple[dict[str, ast.FunctionDef | ast.AsyncFunctionDef], str]:
+    functions = _top_level_functions(tree)
+    root = functions.get("grade_output_correct")
+    if root is None:
+        raise ValueError("grade_output_correct is missing")
+    positional = _positional_parameters(root)
+    if not positional:
+        raise ValueError("grade_output_correct has no positional input argument")
+    return functions, positional[0]
+
+
+def grader_reads_input_text(grader_code: str) -> bool:
+    """Return whether the grader statically loads its first input argument.
+
+    The public benchmark usually names this parameter ``input_text`` but not every row
+    uses the same identifier. We therefore identify the argument by position in
+    ``grade_output_correct`` and then look for loads of that actual parameter name.
+
+    This deliberately over-approximates semantic use: forwarding the input into a helper
+    also counts as a read. Use :func:`grader_consumes_input_text` to distinguish pure
+    forwarding from actual inspection of the value.
     """
     tree = _parse_grader(grader_code)
+    _functions, parameter_name = _grader_input_parameter(tree)
     return any(
         isinstance(node, ast.Name)
-        and node.id == "input_text"
+        and node.id == parameter_name
         and isinstance(node.ctx, ast.Load)
         for node in ast.walk(tree)
     )
 
 
 def grader_consumes_input_text(grader_code: str) -> bool:
-    """Conservatively trace whether the public grader can inspect `input_text`.
+    """Conservatively trace whether the public grader can inspect its first input.
 
-    The IH-Challenge grader signature always accepts `input_text`, but many composite
-    graders merely forward that parameter to local helper graders that themselves ignore
-    it. This lightweight inter-procedural taint analysis follows direct calls between
-    top-level local functions and treats every other use as semantic consumption.
+    Many IH-Challenge composite graders merely forward their first argument to local
+    helper graders that themselves ignore it. This lightweight inter-procedural taint
+    analysis follows direct calls between top-level local functions and treats every
+    other use as semantic consumption.
 
     Unknown calls, attributes, starred arguments, closures, and other ambiguous cases are
     intentionally classified as consuming the value rather than guessed away.
     """
     tree = _parse_grader(grader_code)
-    functions = {
-        node.name: node
-        for node in tree.body
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-    }
-    root = functions.get("grade_output_correct")
-    if root is None:
-        raise ValueError("grade_output_correct is missing")
+    functions, root_parameter = _grader_input_parameter(tree)
 
     parents: dict[ast.AST, ast.AST] = {}
     for parent in ast.walk(tree):
         for child in ast.iter_child_nodes(parent):
             parents[child] = parent
-
-    def parameters(function: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
-        return [
-            arg.arg
-            for arg in (
-                list(function.args.posonlyargs)
-                + list(function.args.args)
-                + list(function.args.kwonlyargs)
-            )
-        ]
 
     def owner_function(node: ast.AST) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
         current = parents.get(node)
@@ -90,9 +123,7 @@ def grader_consumes_input_text(grader_code: str) -> bool:
             current = parents.get(current)
         return None
 
-    def forwarded_target(
-        name_node: ast.Name,
-    ) -> tuple[str, str] | None:
+    def forwarded_target(name_node: ast.Name) -> tuple[str, str] | None:
         parent = parents.get(name_node)
         call: ast.Call | None = None
         target_parameter: str | None = None
@@ -101,7 +132,7 @@ def grader_consumes_input_text(grader_code: str) -> bool:
             call = parent
             position = parent.args.index(name_node)
             if isinstance(call.func, ast.Name) and call.func.id in functions:
-                callee_params = parameters(functions[call.func.id])
+                callee_params = _positional_parameters(functions[call.func.id])
                 if position < len(callee_params):
                     target_parameter = callee_params[position]
         elif isinstance(parent, ast.keyword) and parent.value is name_node:
@@ -115,6 +146,7 @@ def grader_consumes_input_text(grader_code: str) -> bool:
             or target_parameter is None
             or not isinstance(call.func, ast.Name)
             or call.func.id not in functions
+            or target_parameter not in _all_parameters(functions[call.func.id])
         ):
             return None
         return call.func.id, target_parameter
@@ -129,7 +161,7 @@ def grader_consumes_input_text(grader_code: str) -> bool:
         if key in visiting:
             return False
         function = functions[function_name]
-        if parameter_name not in parameters(function):
+        if parameter_name not in _all_parameters(function):
             return True
 
         visiting.add(key)
@@ -154,7 +186,7 @@ def grader_consumes_input_text(grader_code: str) -> bool:
         finally:
             visiting.discard(key)
 
-    return consumes("grade_output_correct", "input_text")
+    return consumes("grade_output_correct", root_parameter)
 
 
 def grade_output_isolated(
