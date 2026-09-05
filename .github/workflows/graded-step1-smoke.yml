@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'src/ih_decay/grader.py'
+      - 'src/ih_decay/grader_contract.py'
       - 'src/ih_decay/_grader_worker.py'
       - 'src/ih_decay/attacks.py'
       - 'src/ih_decay/materialize.py'
@@ -23,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
       - name: Install package
         run: python -m pip install -e .
       - name: Generate attacks, query one-step defenders, and grade three rows
