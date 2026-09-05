@@ -30,6 +30,21 @@ def test_detects_input_text_dependency_conservatively():
     assert grader_consumes_input_text(dependent) is True
 
 
+def test_tracks_first_input_argument_even_when_renamed():
+    renamed_unused = (
+        "def grade_output_correct(prompt, assistant_response):\n"
+        " return assistant_response == 'ok'\n"
+    )
+    renamed_used = (
+        "def grade_output_correct(prompt, assistant_response):\n"
+        " return prompt in assistant_response\n"
+    )
+    assert grader_reads_input_text(renamed_unused) is False
+    assert grader_consumes_input_text(renamed_unused) is False
+    assert grader_reads_input_text(renamed_used) is True
+    assert grader_consumes_input_text(renamed_used) is True
+
+
 def test_semantic_trace_ignores_pure_forwarding():
     forwarded_only = '''
 def helper(input_text, assistant_response):
