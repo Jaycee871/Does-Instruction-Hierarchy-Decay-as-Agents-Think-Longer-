@@ -1,0 +1,56 @@
+name: Step-1 100-item pilot
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/run_step1_pilot_shard.py'
+      - 'configs/pilot.json'
+      - '.github/workflows/step1-100-item-pilot.yml'
+      - 'src/ih_decay/attacks.py'
+      - 'src/ih_decay/data.py'
+      - 'src/ih_decay/grader.py'
+      - 'src/ih_decay/grader_contract.py'
+      - 'src/ih_decay/materialize.py'
+      - 'src/ih_decay/providers.py'
+      - 'src/ih_decay/sampling.py'
+
+jobs:
+  step1-shard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        source_file:
+          - single-constraint.jsonl
+          - multi-constraint.jsonl
+          - input-conditioned.jsonl
+          - anti-overrefusal.jsonl
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN1 }}
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install package
+        run: python -m pip install -e .
+      - name: Run deterministic 25-item step-1 shard
+        run: |
+          python scripts/run_step1_pilot_shard.py \
+            --source-file '${{ matrix.source_file }}' \
+            --items 25 \
+            --seed 20260905 \
+            --model openai/gpt-oss-20b \
+            --max-tokens 4096 \
+            --output-dir step1-pilot
+      - name: Upload shard records even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: step1-pilot-${{ matrix.source_file }}
+          path: step1-pilot/
+          if-no-files-found: warn
