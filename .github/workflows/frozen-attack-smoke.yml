@@ -1,0 +1,33 @@
+name: Frozen attack pipeline smoke
+
+on:
+  push:
+    paths:
+      - 'src/ih_decay/attacks.py'
+      - 'src/ih_decay/materialize.py'
+      - 'src/ih_decay/providers.py'
+      - 'scripts/smoke_frozen_attack.py'
+      - '.github/workflows/frozen-attack-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN1 }}
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package
+        run: python -m pip install -e .
+      - name: Generate, freeze, materialize, and query three authority pairs
+        run: python scripts/smoke_frozen_attack.py
+      - name: Upload full smoke record
+        uses: actions/upload-artifact@v4
+        with:
+          name: frozen-attack-pipeline-smoke
+          path: frozen-attack-smoke.json

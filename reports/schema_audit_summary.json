@@ -1,0 +1,53 @@
+{
+  "source_run": 33942666515,
+  "all_rows_have_attack_placeholder": true,
+  "all_rows_have_grader_code_python": true,
+  "files": {
+    "single-constraint.jsonl": {
+      "rows": 1900,
+      "template_lengths": {"2": 1900},
+      "role_sequences": {
+        "developer -> user": 678,
+        "system -> developer": 588,
+        "system -> user": 634
+      },
+      "grader_code_length": {"min": 120, "mean": 220.32, "max": 431}
+    },
+    "multi-constraint.jsonl": {
+      "rows": 4832,
+      "template_lengths": {"2": 4832},
+      "role_sequences": {
+        "developer -> user": 1388,
+        "system -> developer": 1355,
+        "system -> user": 2089
+      },
+      "grader_code_length": {"min": 457, "mean": 1090.37, "max": 1858}
+    },
+    "input-conditioned.jsonl": {
+      "rows": 19038,
+      "template_lengths": {"2": 17150, "3": 1888},
+      "role_sequences": {
+        "developer -> system": 941,
+        "developer -> user": 4655,
+        "developer -> user -> developer": 630,
+        "system -> developer": 5017,
+        "system -> developer -> system": 627,
+        "system -> user": 4706,
+        "system -> user -> system": 631,
+        "user -> developer": 901,
+        "user -> system": 930
+      },
+      "grader_code_length": {"min": 990, "mean": 2835.27, "max": 6354}
+    },
+    "anti-overrefusal.jsonl": {
+      "rows": 1800,
+      "template_lengths": {"2": 1800},
+      "role_sequences": {
+        "developer -> user": 582,
+        "system -> developer": 583,
+        "system -> user": 635
+      },
+      "grader_code_length": {"min": 151, "mean": 448.45, "max": 776}
+    }
+  }
+}
