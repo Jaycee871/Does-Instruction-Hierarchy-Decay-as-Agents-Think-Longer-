@@ -46,7 +46,8 @@ def main() -> None:
             api_key=nvidia_key,
             model=MODEL,
             temperature=0.0,
-            max_tokens=512,
+            max_tokens=4096,
+            reasoning_effort="low",
         )
         placeholder = example.metadata.get("attack_placeholder")
         if not isinstance(placeholder, str):
@@ -62,7 +63,8 @@ def main() -> None:
             model=MODEL,
             messages=materialized.messages,
             temperature=0.0,
-            max_tokens=512,
+            max_tokens=4096,
+            reasoning_effort="low",
         )
 
         records.append(
@@ -84,6 +86,8 @@ def main() -> None:
                     "prompt_tokens": defender.prompt_tokens,
                     "completion_tokens": defender.completion_tokens,
                     "total_tokens": defender.total_tokens,
+                    "reasoning_effort": "low",
+                    "max_tokens": 4096,
                 },
                 "graded": False,
                 "note": "Pipeline smoke only; no IH-Challenge grader executed.",
