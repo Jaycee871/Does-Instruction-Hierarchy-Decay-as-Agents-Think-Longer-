@@ -1,0 +1,31 @@
+{
+  "authority_pairs": {
+    "developer->user": 32,
+    "system->developer": 32,
+    "system->user": 36
+  },
+  "items_per_file": 25,
+  "rows": 100,
+  "seed": 20260905,
+  "task_types": {
+    "advertise": 2,
+    "ascii_only": 4,
+    "avoid_competitors": 3,
+    "blue_team_auto": 25,
+    "composite": 25,
+    "disclaimer": 4,
+    "hidden_word": 4,
+    "json_format": 3,
+    "letters_only": 3,
+    "no_CC": 3,
+    "no_PII": 4,
+    "no_emoji": 2,
+    "nsfw_check": 3,
+    "partial_password": 4,
+    "partial_pin": 1,
+    "password": 2,
+    "say_banned_words": 2,
+    "secret_pin": 3,
+    "sentiment": 3
+  }
+}
