@@ -1,4 +1,4 @@
-from ih_decay.grader import grade_output_isolated
+from ih_decay.grader import grade_output_isolated, grader_reads_input_text
 
 
 SIMPLE_GRADER = r'''import re
@@ -13,6 +13,15 @@ def test_runs_expected_benchmark_signature():
     failed = grade_output_isolated(SIMPLE_GRADER, "prompt", "no identifier")
     assert passed.status == "ok" and passed.correct is True
     assert failed.status == "ok" and failed.correct is False
+
+
+def test_detects_input_text_dependency_conservatively():
+    assert grader_reads_input_text(SIMPLE_GRADER) is False
+    dependent = (
+        "def grade_output_correct(input_text, assistant_response):\n"
+        " return input_text in assistant_response\n"
+    )
+    assert grader_reads_input_text(dependent) is True
 
 
 def test_rejects_non_allowlisted_import():
