@@ -88,6 +88,8 @@ def nvidia_chat(
         raise ProviderError(f"NVIDIA HTTP {exc.code}: {preview}") from exc
     except urllib.error.URLError as exc:
         raise ProviderError(f"NVIDIA request failed: {exc.reason}") from exc
+    except TimeoutError as exc:
+        raise ProviderError("NVIDIA request timed out") from exc
 
     try:
         choice = body["choices"][0]
