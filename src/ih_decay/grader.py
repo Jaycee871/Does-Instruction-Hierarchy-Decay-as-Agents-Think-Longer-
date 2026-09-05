@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import json
 import subprocess
 import sys
@@ -21,6 +22,23 @@ class GradeResult:
 
     def as_dict(self) -> dict[str, bool | float | str | None]:
         return asdict(self)
+
+
+def grader_reads_input_text(grader_code: str) -> bool:
+    """Return whether a grader statically loads the `input_text` argument.
+
+    This is intentionally conservative and is used only to select the first graded
+    smoke cases. A syntax error is treated as unsafe rather than guessed around.
+    """
+    if not isinstance(grader_code, str) or not grader_code.strip():
+        raise ValueError("grader_code must be a non-empty string")
+    tree = ast.parse(grader_code, filename="<dataset-grader>", mode="exec")
+    return any(
+        isinstance(node, ast.Name)
+        and node.id == "input_text"
+        and isinstance(node.ctx, ast.Load)
+        for node in ast.walk(tree)
+    )
 
 
 def grade_output_isolated(
