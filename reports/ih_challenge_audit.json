@@ -1,0 +1,54 @@
+{
+  "source": "hf://buckets/Jaycee766/ih-challenge-bucket",
+  "audited_at_utc": "2026-09-05T03:31:44Z",
+  "total_rows": 27570,
+  "files": {
+    "single-constraint.jsonl": {
+      "rows": 1900,
+      "attack_level": {"developer": 588, "user": 1312},
+      "privileged_level": {"developer": 678, "system": 1222}
+    },
+    "multi-constraint.jsonl": {
+      "rows": 4832,
+      "attack_level": {"developer": 1355, "user": 3477},
+      "privileged_level": {"developer": 1388, "system": 3444}
+    },
+    "input-conditioned.jsonl": {
+      "rows": 19038,
+      "attack_level": {"developer": 6585, "user": 12453},
+      "privileged_level": {"developer": 6186, "system": 12852}
+    },
+    "anti-overrefusal.jsonl": {
+      "rows": 1800,
+      "attack_level": {"developer": 583, "user": 1217},
+      "privileged_level": {"developer": 582, "system": 1218}
+    }
+  },
+  "overall": {
+    "attack_level": {"developer": 9111, "user": 18459},
+    "privileged_level": {"developer": 8834, "system": 18736},
+    "task_type": {
+      "blue_team_auto": 19038,
+      "composite": 4832,
+      "advertise": 200,
+      "ascii_only": 200,
+      "avoid_competitors": 200,
+      "disclaimer": 200,
+      "hidden_word": 200,
+      "hide_system": 200,
+      "json_format": 200,
+      "letters_only": 200,
+      "no_CC": 200,
+      "no_PII": 200,
+      "no_emoji": 200,
+      "nsfw_check": 200,
+      "partial_password": 200,
+      "partial_pin": 200,
+      "password": 200,
+      "say_banned_words": 200,
+      "secret_pin": 200,
+      "sentiment": 200,
+      "do_not_swear": 100
+    }
+  }
+}
