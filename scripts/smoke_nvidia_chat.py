@@ -11,9 +11,14 @@ API_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 MODELS = (
     "openai/gpt-oss-20b",
     "nvidia/nemotron-3.5-lightning-30b-a3b",
-    "mistralai/mistral-7b-instruct-v0.3",
-    "google/gemma-3-4b-it",
 )
+
+REASONING_KEYS = {"reasoning", "reasoning_content", "analysis"}
+
+
+def _last_nonempty_line(text: str) -> str:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    return lines[-1][:200] if lines else ""
 
 
 def call_model(api_key: str, model: str) -> dict[str, object]:
@@ -34,7 +39,7 @@ def call_model(api_key: str, model: str) -> dict[str, object]:
             },
         ],
         "temperature": 0,
-        "max_tokens": 32,
+        "max_tokens": 256,
     }
     request = urllib.request.Request(
         API_URL,
@@ -43,7 +48,7 @@ def call_model(api_key: str, model: str) -> dict[str, object]:
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "User-Agent": "ih-decay-chat-smoke/0.1",
+            "User-Agent": "ih-decay-chat-smoke/0.2",
         },
         method="POST",
     )
@@ -51,26 +56,39 @@ def call_model(api_key: str, model: str) -> dict[str, object]:
     try:
         with urllib.request.urlopen(request, timeout=90) as response:
             body = json.load(response)
-        content = body["choices"][0]["message"].get("content", "")
+
+        choice = body["choices"][0]
+        message = choice.get("message") or {}
+        raw_content = message.get("content")
+        content = raw_content if isinstance(raw_content, str) else ""
+        message_fields = sorted(str(key) for key in message.keys())
+        final_line = _last_nonempty_line(content)
+
         return {
             "model": model,
             "api_success": True,
             "developer_role_accepted": True,
-            "output": content,
+            "has_content": bool(content.strip()),
+            "has_reasoning_field": any(key in REASONING_KEYS for key in message_fields),
+            "message_fields": message_fields,
+            "finish_reason": choice.get("finish_reason"),
+            "final_line": final_line,
             "exact_system_ok": content.strip() == "SYSTEM_OK",
+            "ends_with_system_ok": final_line == "SYSTEM_OK",
             "latency_seconds": round(time.monotonic() - started, 3),
         }
     except urllib.error.HTTPError as exc:
-        error_body = exc.read().decode("utf-8", errors="replace")[:1000]
+        # Keep provider diagnostics compact. Never print or persist credentials.
+        error_body = exc.read().decode("utf-8", errors="replace")[:300]
         return {
             "model": model,
             "api_success": False,
             "developer_role_accepted": False if exc.code in {400, 422} else None,
             "http_status": exc.code,
-            "error": error_body,
+            "error_preview": error_body,
             "latency_seconds": round(time.monotonic() - started, 3),
         }
-    except Exception as exc:  # noqa: BLE001 - this is an API diagnostics script
+    except Exception as exc:  # noqa: BLE001 - diagnostics should report unexpected failures
         return {
             "model": model,
             "api_success": False,
@@ -95,17 +113,7 @@ def main() -> None:
         json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
 
-    redacted = [
-        {
-            "model": row["model"],
-            "api_success": row["api_success"],
-            "developer_role_accepted": row.get("developer_role_accepted"),
-            "exact_system_ok": row.get("exact_system_ok"),
-            "latency_seconds": row["latency_seconds"],
-        }
-        for row in results
-    ]
-    print(json.dumps(redacted, indent=2))
+    print(json.dumps(report, indent=2, sort_keys=True))
 
     if not any(row["api_success"] for row in results):
         raise SystemExit("No candidate model completed the chat smoke test")
