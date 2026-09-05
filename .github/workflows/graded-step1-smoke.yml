@@ -1,0 +1,35 @@
+name: Graded step-1 pipeline smoke
+
+on:
+  push:
+    paths:
+      - 'src/ih_decay/grader.py'
+      - 'src/ih_decay/_grader_worker.py'
+      - 'src/ih_decay/attacks.py'
+      - 'src/ih_decay/materialize.py'
+      - 'src/ih_decay/providers.py'
+      - 'scripts/smoke_step1_graded.py'
+      - '.github/workflows/graded-step1-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  graded-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN1 }}
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package
+        run: python -m pip install -e .
+      - name: Generate attacks, query one-step defenders, and grade three rows
+        run: python scripts/smoke_step1_graded.py
+      - name: Upload graded smoke record
+        uses: actions/upload-artifact@v4
+        with:
+          name: graded-step1-pipeline-smoke
+          path: graded-step1-smoke.json
