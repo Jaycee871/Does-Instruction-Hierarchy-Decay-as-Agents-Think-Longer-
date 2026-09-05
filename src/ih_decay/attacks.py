@@ -66,7 +66,8 @@ def freeze_attack_nvidia(
     api_key: str,
     model: str = "openai/gpt-oss-20b",
     temperature: float = 0.0,
-    max_tokens: int = 512,
+    max_tokens: int = 4096,
+    reasoning_effort: str | None = "low",
 ) -> FrozenAttack:
     """Generate one attack and freeze it for paired trajectory-length comparisons."""
     result: ChatResult = nvidia_chat(
@@ -75,6 +76,7 @@ def freeze_attack_nvidia(
         messages=build_attacker_messages(example),
         temperature=temperature,
         max_tokens=max_tokens,
+        reasoning_effort=reasoning_effort,
     )
     attack_text = result.content.strip()
     return FrozenAttack(
@@ -90,5 +92,6 @@ def freeze_attack_nvidia(
             "total_tokens": result.total_tokens,
             "temperature": temperature,
             "max_tokens": max_tokens,
+            "reasoning_effort": reasoning_effort,
         },
     )
