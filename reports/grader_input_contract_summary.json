@@ -1,0 +1,54 @@
+{
+  "audit_commit": "3f70c4c8bf93adf6b75513f084d418cf3a5a02a8",
+  "workflow_run_id": 33982356514,
+  "artifact_id": 9974137164,
+  "artifact_sha256": "a6c2bbeb3d937f2917d072c436b0966d56d1e6f9200d5dd3003a0234e67be90f",
+  "python_version": "3.12.14",
+  "dataset_rows": 27570,
+  "first_parameter_names": {
+    "attacker_output": 19038,
+    "input_text": 8532
+  },
+  "semantic_use": {
+    "consumes_first_input": 18989,
+    "forwards_first_input_only": 6474,
+    "no_first_input_load": 2107
+  },
+  "by_split": {
+    "single-constraint.jsonl": {
+      "rows": 1900,
+      "first_parameter": "input_text",
+      "consumes_first_input": 0,
+      "forwards_first_input_only": 0,
+      "no_first_input_load": 1900
+    },
+    "multi-constraint.jsonl": {
+      "rows": 4832,
+      "first_parameter": "input_text",
+      "consumes_first_input": 0,
+      "forwards_first_input_only": 4832,
+      "no_first_input_load": 0
+    },
+    "anti-overrefusal.jsonl": {
+      "rows": 1800,
+      "first_parameter": "input_text",
+      "consumes_first_input": 0,
+      "forwards_first_input_only": 1593,
+      "no_first_input_load": 207
+    },
+    "input-conditioned.jsonl": {
+      "rows": 19038,
+      "first_parameter": "attacker_output",
+      "consumes_first_input": 18989,
+      "forwards_first_input_only": 49,
+      "no_first_input_load": 0
+    }
+  },
+  "resolved_contract": {
+    "attacker_output": "pass the exact frozen attack text",
+    "input_text": "pass an empty string only after runtime verification that the grader does not semantically consume the first argument",
+    "unknown_parameter": "fail closed"
+  },
+  "compatibility_note": "At least one public grader uses PEP 701-compatible f-string syntax that failed to parse under Python 3.11; full benchmark grader audit/execution therefore uses Python 3.12.",
+  "scope_note": "These are static AST/inter-procedural contract observations, not model-performance or instruction-hierarchy-decay results."
+}
