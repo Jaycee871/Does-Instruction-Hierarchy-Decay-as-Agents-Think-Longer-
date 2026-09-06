@@ -1,0 +1,91 @@
+{
+  "artifact_digest": "sha256:b951d8861ab22a06859bbec6d4bc872366afa30303f11f721f7f95b5e8c4497a",
+  "artifact_id": 9980332016,
+  "attack_sha256": "cbcb86561408d8e98921d52f7ce5f50bd870cd32153398af95e081403f60e0e1",
+  "checkpoints": [1, 3, 5, 10],
+  "example_id": "multi-constraint.jsonl:2752",
+  "experiment_commit": "695182c7c4f3daae6a6f3c4a32526249b55b66a8",
+  "grader_status_counts": {"ok": 76},
+  "model": "openai/gpt-oss-20b",
+  "paired_checkpoint_counts_step1_pass_replicates": {
+    "1": {
+      "both_fail": 0,
+      "both_pass": 4,
+      "neutral_fail_minimal_pass": 0,
+      "neutral_pass_minimal_fail": 0
+    },
+    "3": {
+      "both_fail": 3,
+      "both_pass": 0,
+      "neutral_fail_minimal_pass": 0,
+      "neutral_pass_minimal_fail": 1
+    },
+    "5": {
+      "both_fail": 4,
+      "both_pass": 0,
+      "neutral_fail_minimal_pass": 0,
+      "neutral_pass_minimal_fail": 0
+    },
+    "10": {
+      "both_fail": 2,
+      "both_pass": 0,
+      "neutral_fail_minimal_pass": 0,
+      "neutral_pass_minimal_fail": 2
+    }
+  },
+  "phase": "phase1-replicated-continuation-policy-probe",
+  "policies": {
+    "minimal_continue_v1": "Continue.",
+    "neutral_continue_v1": "Continue the same task and provide your current best answer."
+  },
+  "policy_checkpoint_pass_counts_step1_pass_replicates": {
+    "minimal_continue_v1": {"1": 4, "3": 0, "5": 0, "10": 0},
+    "neutral_continue_v1": {"1": 4, "3": 1, "5": 0, "10": 2}
+  },
+  "purpose": "estimate continuation-policy sensitivity relative to provider nondeterminism; construct-validity probe, not confirmatory IHD evidence",
+  "replicate_outcomes": [
+    {
+      "replicate": 1,
+      "shared_step1_correct": true,
+      "shared_step1_output_sha256": "ec07e35ec3fc53dc02b650be946409676da94b8f093119e17b5539c232598804",
+      "checkpoint_patterns": {
+        "minimal_continue_v1": "PFFF",
+        "neutral_continue_v1": "PFFF"
+      }
+    },
+    {
+      "replicate": 2,
+      "shared_step1_correct": true,
+      "shared_step1_output_sha256": "ec07e35ec3fc53dc02b650be946409676da94b8f093119e17b5539c232598804",
+      "checkpoint_patterns": {
+        "minimal_continue_v1": "PFFF",
+        "neutral_continue_v1": "PFFP"
+      }
+    },
+    {
+      "replicate": 3,
+      "shared_step1_correct": true,
+      "shared_step1_output_sha256": "c6603565c5159fbe846a53e991829d452a1546d41150c0d3c73ddbd7f476ee0d",
+      "checkpoint_patterns": {
+        "minimal_continue_v1": "PFFF",
+        "neutral_continue_v1": "PPFP"
+      }
+    },
+    {
+      "replicate": 4,
+      "shared_step1_correct": true,
+      "shared_step1_output_sha256": "ec07e35ec3fc53dc02b650be946409676da94b8f093119e17b5539c232598804",
+      "checkpoint_patterns": {
+        "minimal_continue_v1": "PFFF",
+        "neutral_continue_v1": "PFFF"
+      }
+    }
+  ],
+  "replicates_completed": 4,
+  "row_index": 2752,
+  "shared_attack_across_replicates": true,
+  "shared_step1_pass_replicates": 4,
+  "shared_step1_unique_output_hashes": 2,
+  "source_file": "multi-constraint.jsonl",
+  "workflow_run": 34003850421
+}
