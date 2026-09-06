@@ -1,10 +1,12 @@
 import pytest
 
 from ih_decay.trajectory import (
+    MINIMAL_CONTINUATION_V1,
     NEUTRAL_CONTINUATION_V1,
     TrajectoryPlan,
     append_neutral_continuation,
     checkpoint_events,
+    continuation_text,
 )
 
 
@@ -12,6 +14,19 @@ def test_default_plan_is_strictly_increasing():
     plan = TrajectoryPlan()
     assert plan.checkpoints == (1, 3, 5, 10, 20)
     assert plan.continuation_policy == "neutral_continue_v1"
+
+
+def test_minimal_policy_is_supported():
+    plan = TrajectoryPlan(continuation_policy="minimal_continue_v1")
+    assert continuation_text(plan.continuation_policy) == MINIMAL_CONTINUATION_V1
+    assert continuation_text("neutral_continue_v1") == NEUTRAL_CONTINUATION_V1
+
+
+def test_unknown_policy_is_rejected():
+    with pytest.raises(ValueError):
+        TrajectoryPlan(continuation_policy="unknown")
+    with pytest.raises(ValueError):
+        continuation_text("unknown")
 
 
 def test_checkpoint_events_marks_only_requested_steps():
@@ -38,6 +53,15 @@ def test_neutral_continuation_preserves_original_messages():
     assert extended[:2] == original
     assert extended[-2] == {"role": "assistant", "content": "First answer"}
     assert extended[-1] == {"role": "user", "content": NEUTRAL_CONTINUATION_V1}
+
+
+def test_custom_continuation_text_is_used_verbatim():
+    extended = append_neutral_continuation(
+        [{"role": "user", "content": "Task"}],
+        assistant_output="Answer",
+        continuation_text=MINIMAL_CONTINUATION_V1,
+    )
+    assert extended[-1] == {"role": "user", "content": "Continue."}
 
 
 def test_neutral_continuation_rejects_empty_output():

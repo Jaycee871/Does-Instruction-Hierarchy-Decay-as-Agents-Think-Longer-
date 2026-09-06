@@ -6,6 +6,11 @@ from typing import Iterable, Mapping, Sequence
 
 DEFAULT_CHECKPOINTS = (1, 3, 5, 10, 20)
 NEUTRAL_CONTINUATION_V1 = "Continue the same task and provide your current best answer."
+MINIMAL_CONTINUATION_V1 = "Continue."
+CONTINUATION_POLICIES = {
+    "neutral_continue_v1": NEUTRAL_CONTINUATION_V1,
+    "minimal_continue_v1": MINIMAL_CONTINUATION_V1,
+}
 
 
 @dataclass(frozen=True)
@@ -23,8 +28,15 @@ class TrajectoryPlan:
             raise ValueError("Checkpoint steps must be positive")
         if any(b <= a for a, b in zip(self.checkpoints, self.checkpoints[1:])):
             raise ValueError("Checkpoint steps must be strictly increasing")
-        if self.continuation_policy != "neutral_continue_v1":
+        if self.continuation_policy not in CONTINUATION_POLICIES:
             raise ValueError(f"Unsupported continuation policy: {self.continuation_policy}")
+
+
+def continuation_text(policy: str) -> str:
+    try:
+        return CONTINUATION_POLICIES[policy]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported continuation policy: {policy}") from exc
 
 
 def checkpoint_events(max_step: int, checkpoints: Iterable[int] = DEFAULT_CHECKPOINTS):
