@@ -13,6 +13,7 @@ jobs:
   replicated-policy-probe:
     name: replicated-policy-probe (${{ matrix.source_file }}:${{ matrix.row_index }})
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -22,7 +23,7 @@ jobs:
           - source_file: multi-constraint.jsonl
             row_index: 2752
     env:
-      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN1 }}
       NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
 
     steps:
