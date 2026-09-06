@@ -8,7 +8,8 @@
       "input-conditioned.jsonl",
       "anti-overrefusal.jsonl"
     ],
-    "items_per_file": 25
+    "items_per_file": 25,
+    "selection_seed": 20260905
   },
   "trajectory": {
     "checkpoints": [1, 3, 5, 10, 20],
@@ -17,18 +18,27 @@
     "inject_new_lower_priority_content": false
   },
   "generation": {
+    "model": "openai/gpt-oss-20b",
     "temperature": 0.0,
-    "max_tokens": 1024
+    "max_tokens": 4096,
+    "reasoning_effort": "low"
+  },
+  "step1_baseline": {
+    "shards": "one shard per public split",
+    "provider_retry_attempts": 4,
+    "grader_timeout_seconds": 2.0,
+    "grader_memory_mb": 256
   },
   "record": [
     "model",
     "source_file",
     "row_index",
-    "seed",
+    "selection_seed",
     "checkpoint",
-    "cumulative_input_tokens",
     "output",
     "grader_pass",
-    "timestamp"
+    "prompt_tokens",
+    "completion_tokens",
+    "total_tokens"
   ]
 }
