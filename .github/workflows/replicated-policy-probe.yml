@@ -1,0 +1,51 @@
+name: Replicated continuation policy probe
+
+on:
+  push:
+    branches:
+      - phase1/replicated-policy-probe
+    paths:
+      - scripts/run_replicated_policy_probe.py
+      - .github/workflows/replicated-policy-probe.yml
+  workflow_dispatch:
+
+jobs:
+  replicated-policy-probe:
+    name: replicated-policy-probe (${{ matrix.source_file }}:${{ matrix.row_index }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - source_file: single-constraint.jsonl
+            row_index: 654
+          - source_file: multi-constraint.jsonl
+            row_index: 2752
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install package
+        run: python -m pip install -e .
+      - name: Run four paired replicates through step 10
+        run: |
+          python scripts/run_replicated_policy_probe.py \
+            --source-file '${{ matrix.source_file }}' \
+            --row-index '${{ matrix.row_index }}' \
+            --replicates 4 \
+            --model openai/gpt-oss-20b \
+            --max-tokens 4096 \
+            --max-step 10 \
+            --output-dir replicated-policy-probe
+      - name: Upload replicated probe artifacts even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: replicated-policy-${{ matrix.source_file }}-row-${{ matrix.row_index }}
+          path: replicated-policy-probe/
+          if-no-files-found: warn
